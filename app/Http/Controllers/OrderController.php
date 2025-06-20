@@ -217,4 +217,93 @@ class OrderController extends Controller
             return response()->json(['message' => 'An error occurred while updating order status.'], 500);
         }
     }
+
+    // Method untuk menampilkan semua pesanan (admin view)
+    public function adminIndex(Request $request)
+    {
+        $query = Order::with(['user', 'orderDetails.plant']);
+
+        // Filter berdasarkan status
+        if ($request->has('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Filter berdasarkan user
+        if ($request->has('user_id')) {
+            $query->where('user_id', $request->user_id);
+        }
+
+        // Filter berdasarkan tanggal
+        if ($request->has('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->has('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        // Pencarian
+        if ($request->has('search')) {
+            $query->where(function($q) use ($request) {
+                $q->whereHas('user', function($query) use ($request) {
+                    $query->where('name', 'like', '%' . $request->search . '%')
+                          ->orWhere('email', 'like', '%' . $request->search . '%');
+                });
+            });
+        }
+
+        $orders = $query->latest()->paginate(10);
+
+        return response()->json(['orders' => $orders]);
+    }
+
+    // Method untuk menghapus pesanan (admin only)
+    public function destroy($id)
+    {
+        $order = Order::findOrFail($id);
+
+        try {
+            DB::beginTransaction();
+
+            // Kembalikan stok produk
+            foreach ($order->orderDetails as $detail) {
+                Plant::where('id', $detail->plant_id)
+                    ->increment('stock', $detail->quantity);
+            }
+
+            // Hapus detail pesanan dan pesanan
+            $order->orderDetails()->delete();
+            $order->delete();
+
+            DB::commit();
+
+            return response()->json(['message' => 'Order deleted successfully']);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'An error occurred while deleting the order.'], 500);
+        }
+    }
+
+    // Method untuk mengubah detail pesanan (admin only)
+    public function updateOrderDetails(Request $request, $id)
+    {
+        $order = Order::findOrFail($id);
+
+        $validator = Validator::make($request->all(), [
+            'shipping_address' => 'sometimes|required|string',
+            'notes' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $order->update($request->only(['shipping_address', 'notes']));
+
+        return response()->json([
+            'message' => 'Order details updated successfully',
+            'order' => $order->fresh()
+        ]);
+    }
 }

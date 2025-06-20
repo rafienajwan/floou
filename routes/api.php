@@ -9,6 +9,7 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\PlantTypeController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\UserManagementController;
 
 use App\Http\Controllers\DashboardController;
 
@@ -61,4 +62,18 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::post('/plants', [PlantController::class, 'store']);
     Route::post('/plants/{plant}', [PlantController::class, 'update']);
     Route::delete('/plants/{plant}', [PlantController::class, 'destroy']);
+});
+
+// Admin User Management routes
+Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function () {
+    // Kelola Akun
+    Route::get('/users', [UserManagementController::class, 'index']);
+    Route::get('/users/{id}', [UserManagementController::class, 'show']);
+    Route::put('/users/{id}', [UserManagementController::class, 'update']);
+    Route::delete('/users/{id}', [UserManagementController::class, 'destroy']);
+
+    // Kelola Pesanan (Admin)
+    Route::get('/orders', [OrderController::class, 'adminIndex']);
+    Route::put('/orders/{id}', [OrderController::class, 'updateOrderDetails']);
+    Route::delete('/orders/{id}', [OrderController::class, 'destroy']);
 });
