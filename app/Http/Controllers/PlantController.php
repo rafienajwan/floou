@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use App\Models\Plant;
+use App\Http\Resources\PlantResource;
 
 class PlantController extends Controller
 {
@@ -46,7 +47,15 @@ class PlantController extends Controller
 
         $plants = $query->paginate(10);
 
-        return response()->json(['plants' => $plants]);
+        return response()->json([
+            'plants' => PlantResource::collection($plants),
+            'pagination' => [
+                'total' => $plants->total(),
+                'per_page' => $plants->perPage(),
+                'current_page' => $plants->currentPage(),
+                'last_page' => $plants->lastPage(),
+            ]
+        ]);
     }
 
     public function store(Request $request)
@@ -81,13 +90,13 @@ class PlantController extends Controller
             'image' => $imagePath,
         ]);
 
-        return response()->json(['plant' => $plant], 201);
+        return response()->json(['plant' => new PlantResource($plant)], 201);
     }
 
     public function show(Plant $plant)
     {
         $plant->load(['category', 'plantType']);
-        return response()->json(['plant' => $plant]);
+        return response()->json(['plant' => new PlantResource($plant)]);
     }
 
     public function update(Request $request, Plant $plant)
@@ -127,7 +136,7 @@ class PlantController extends Controller
 
         $plant->update($data);
 
-        return response()->json(['plant' => $plant]);
+        return response()->json(['plant' => new PlantResource($plant)]);
     }
 
     public function destroy(Plant $plant)
