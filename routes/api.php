@@ -10,7 +10,7 @@ use App\Http\Controllers\PlantTypeController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\UserManagementController;
-
+use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\DashboardController;
 
 // Public routes
@@ -23,6 +23,9 @@ Route::get('/plants/{plant}', [PlantController::class, 'show']);
 Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/plant-types', [PlantTypeController::class, 'index']);
 
+// Public reviews
+Route::get('/plants/{plant}/reviews', [ReviewController::class, 'index']);
+
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
     // Auth
@@ -33,6 +36,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/orders', [OrderController::class, 'store']);
     Route::get('/orders/{id}', [OrderController::class, 'show']);
     Route::post('/orders/{id}/cancel', [OrderController::class, 'cancel']);
+    Route::get('/orders/{id}/invoice', [OrderController::class, 'getInvoice']);
+
+    // Reviews
+    Route::post('/reviews', [ReviewController::class, 'store']);
+    Route::put('/reviews/{id}', [ReviewController::class, 'update']);
+    Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);
+    Route::get('/my-reviews', [ReviewController::class, 'userReviews']);
 
     // Notifications
     Route::get('/notifications', [NotificationController::class, 'index']);
