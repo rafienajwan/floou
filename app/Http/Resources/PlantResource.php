@@ -2,17 +2,10 @@
 
 namespace App\Http\Resources;
 
-use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class PlantResource extends JsonResource
 {
-    /**
-     * Transform the resource into an array.
-     *
-     * @param  Request  $request
-     * @return array
-     */
     public function toArray($request)
     {
         return [
@@ -24,10 +17,10 @@ class PlantResource extends JsonResource
             'stock' => $this->stock,
             'image' => $this->image,
             'image_url' => $this->image_url,
-            'category_id' => $this->category_id,
             'category' => $this->whenLoaded('category'),
-            'plant_type_id' => $this->plant_type_id,
             'plant_type' => $this->whenLoaded('plantType'),
+            'average_rating' => $this->average_rating,
+            'reviews_count' => $this->reviews_count,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];
