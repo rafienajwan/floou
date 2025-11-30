@@ -21,7 +21,7 @@ class Plant extends Model
         'plant_type_id'
     ];
 
-    protected $appends = ['image_url'];
+    protected $appends = ['image_url', 'average_rating', 'reviews_count'];
 
     // Accessor untuk mendapatkan URL gambar
     public function getImageUrlAttribute()
@@ -30,6 +30,16 @@ class Plant extends Model
             return null;
         }
         return url('storage/' . $this->image);
+    }
+
+    public function getAverageRatingAttribute()
+    {
+        return round($this->reviews()->avg('rating') ?? 0, 1);
+    }
+
+    public function getReviewsCountAttribute()
+    {
+        return $this->reviews()->count();
     }
 
     public function category()
