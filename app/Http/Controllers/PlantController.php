@@ -2,18 +2,28 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Plant;
+use App\Models\Category;
+use App\Models\PlantType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
-use App\Models\Plant;
-use App\Http\Resources\PlantResource;
 
 class PlantController extends Controller
 {
     public function index(Request $request)
     {
         $query = Plant::with(['category', 'plantType']);
+
+        // Search
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%')
+                  ->orWhere('description', 'like', '%' . $search . '%');
+            });
+        }
 
         // Filter by category
         if ($request->has('category_id')) {
@@ -34,119 +44,179 @@ class PlantController extends Controller
             $query->where('price', '<=', $request->max_price);
         }
 
-        // Search by name
-        if ($request->has('search')) {
-            $query->where('name', 'LIKE', '%' . $request->search . '%')
-                  ->orWhere('description', 'LIKE', '%' . $request->search . '%');
+        // Filter by stock availability
+        if ($request->has('in_stock') && $request->in_stock == 1) {
+            $query->where('stock', '>', 0);
         }
 
-        // Sort by price
-        if ($request->has('sort_price')) {
-            $query->orderBy('price', $request->sort_price);
+        // Sort
+        $sortBy = $request->get('sort_by', 'created_at');
+        $sortOrder = $request->get('sort_order', 'desc');
+
+        if (in_array($sortBy, ['name', 'price', 'created_at', 'stock'])) {
+            $query->orderBy($sortBy, $sortOrder);
+        } else {
+            $query->latest();
         }
 
-        $plants = $query->paginate(10);
+        $perPage = $request->get('per_page', 12);
+        $plants = $query->paginate($perPage);
 
         return response()->json([
-            'plants' => PlantResource::collection($plants),
-            'pagination' => [
-                'total' => $plants->total(),
-                'per_page' => $plants->perPage(),
-                'current_page' => $plants->currentPage(),
-                'last_page' => $plants->lastPage(),
-            ]
+            'plants' => $plants
+        ]);
+    }
+
+    public function show(Plant $plant)
+    {
+        $plant->load(['category', 'plantType', 'reviews.user']);
+
+        return response()->json([
+            'plant' => $plant
         ]);
     }
 
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
+            'name' => 'required|string|max:255|unique:plants,name',
             'description' => 'required|string',
             'price' => 'required|numeric|min:0',
             'stock' => 'required|integer|min:0',
             'category_id' => 'required|exists:categories,id',
             'plant_type_id' => 'required|exists:plant_types,id',
-            'image' => 'nullable|image|max:2048',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $imagePath = null;
-        if ($request->hasFile('image')) {
-            $imagePath = $request->file('image')->store('plants', 'public');
+        try {
+            $slug = Str::slug($request->name);
+            $originalSlug = $slug;
+            $count = 1;
+
+            // Ensure unique slug
+            while (Plant::where('slug', $slug)->exists()) {
+                $slug = $originalSlug . '-' . $count;
+                $count++;
+            }
+
+            $data = [
+                'name' => $request->name,
+                'slug' => $slug,
+                'description' => $request->description,
+                'price' => $request->price,
+                'stock' => $request->stock,
+                'category_id' => $request->category_id,
+                'plant_type_id' => $request->plant_type_id,
+            ];
+
+            if ($request->hasFile('image')) {
+                $imagePath = $request->file('image')->store('plants', 'public');
+                $data['image'] = $imagePath;
+            }
+
+            $plant = Plant::create($data);
+
+            return response()->json([
+                'message' => 'Plant created successfully',
+                'plant' => $plant->load(['category', 'plantType'])
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to create plant',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        $plant = Plant::create([
-            'name' => $request->name,
-            'slug' => Str::slug($request->name),
-            'description' => $request->description,
-            'price' => $request->price,
-            'stock' => $request->stock,
-            'category_id' => $request->category_id,
-            'plant_type_id' => $request->plant_type_id,
-            'image' => $imagePath,
-        ]);
-
-        return response()->json(['plant' => new PlantResource($plant)], 201);
-    }
-
-    public function show(Plant $plant)
-    {
-        $plant->load(['category', 'plantType']);
-        return response()->json(['plant' => new PlantResource($plant)]);
     }
 
     public function update(Request $request, Plant $plant)
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'description' => 'required|string',
-            'price' => 'required|numeric|min:0',
-            'stock' => 'required|integer|min:0',
-            'category_id' => 'required|exists:categories,id',
-            'plant_type_id' => 'required|exists:plant_types,id',
-            'image' => 'nullable|image|max:2048',
+            'name' => 'sometimes|required|string|max:255|unique:plants,name,' . $plant->id,
+            'description' => 'sometimes|required|string',
+            'price' => 'sometimes|required|numeric|min:0',
+            'stock' => 'sometimes|required|integer|min:0',
+            'category_id' => 'sometimes|required|exists:categories,id',
+            'plant_type_id' => 'sometimes|required|exists:plant_types,id',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $data = [
-            'name' => $request->name,
-            'slug' => Str::slug($request->name),
-            'description' => $request->description,
-            'price' => $request->price,
-            'stock' => $request->stock,
-            'category_id' => $request->category_id,
-            'plant_type_id' => $request->plant_type_id,
-        ];
+        try {
+            $data = $request->only(['name', 'description', 'price', 'stock', 'category_id', 'plant_type_id']);
 
-        if ($request->hasFile('image')) {
-            // Delete old image
-            if ($plant->image) {
-                Storage::disk('public')->delete($plant->image);
+            // Update slug if name changed
+            if ($request->has('name') && $request->name !== $plant->name) {
+                $slug = Str::slug($request->name);
+                $originalSlug = $slug;
+                $count = 1;
+
+                while (Plant::where('slug', $slug)->where('id', '!=', $plant->id)->exists()) {
+                    $slug = $originalSlug . '-' . $count;
+                    $count++;
+                }
+
+                $data['slug'] = $slug;
             }
 
-            $data['image'] = $request->file('image')->store('plants', 'public');
+            if ($request->hasFile('image')) {
+                // Delete old image
+                if ($plant->image && Storage::disk('public')->exists($plant->image)) {
+                    Storage::disk('public')->delete($plant->image);
+                }
+
+                $imagePath = $request->file('image')->store('plants', 'public');
+                $data['image'] = $imagePath;
+            }
+
+            $plant->update($data);
+
+            return response()->json([
+                'message' => 'Plant updated successfully',
+                'plant' => $plant->fresh()->load(['category', 'plantType'])
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to update plant',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        $plant->update($data);
-
-        return response()->json(['plant' => new PlantResource($plant)]);
     }
 
     public function destroy(Plant $plant)
     {
-        if ($plant->image) {
-            Storage::disk('public')->delete($plant->image);
+        try {
+            // Check if plant has orders
+            if ($plant->orderDetails()->exists()) {
+                return response()->json([
+                    'message' => 'Cannot delete plant with existing orders. Consider setting stock to 0 instead.'
+                ], 400);
+            }
+
+            // Delete image
+            if ($plant->image && Storage::disk('public')->exists($plant->image)) {
+                Storage::disk('public')->delete($plant->image);
+            }
+
+            $plant->delete();
+
+            return response()->json([
+                'message' => 'Plant deleted successfully'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to delete plant',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        $plant->delete();
-
-        return response()->json(['message' => 'Plant deleted successfully']);
     }
 }

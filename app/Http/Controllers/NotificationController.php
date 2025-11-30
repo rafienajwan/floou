@@ -9,29 +9,78 @@ class NotificationController extends Controller
 {
     public function index(Request $request)
     {
-        $notifications = $request->user()->notifications()
-            ->latest()
-            ->paginate(10);
+        $perPage = $request->get('per_page', 20);
 
-        return response()->json(['notifications' => $notifications]);
+        $notifications = Notification::where('user_id', $request->user()->id)
+            ->orderBy('is_read', 'asc')
+            ->latest()
+            ->paginate($perPage);
+
+        $unreadCount = Notification::where('user_id', $request->user()->id)
+            ->where('is_read', false)
+            ->count();
+
+        return response()->json([
+            'notifications' => $notifications,
+            'unread_count' => $unreadCount
+        ]);
     }
 
     public function markAsRead(Request $request, $id)
     {
-        $notification = Notification::where('user_id', $request->user()->id)
-            ->findOrFail($id);
+        $notification = Notification::where('id', $id)
+            ->where('user_id', $request->user()->id)
+            ->first();
 
-        $notification->update(['read' => true]);
+        if (!$notification) {
+            return response()->json(['message' => 'Notification not found'], 404);
+        }
 
-        return response()->json(['message' => 'Notification marked as read']);
+        $notification->update(['is_read' => true]);
+
+        return response()->json([
+            'message' => 'Notification marked as read',
+            'notification' => $notification
+        ]);
     }
 
     public function markAllAsRead(Request $request)
     {
-        $request->user()->notifications()
-            ->where('read', false)
-            ->update(['read' => true]);
+        $updated = Notification::where('user_id', $request->user()->id)
+            ->where('is_read', false)
+            ->update(['is_read' => true]);
 
-        return response()->json(['message' => 'All notifications marked as read']);
+        return response()->json([
+            'message' => 'All notifications marked as read',
+            'updated_count' => $updated
+        ]);
+    }
+
+    public function destroy(Request $request, $id)
+    {
+        $notification = Notification::where('id', $id)
+            ->where('user_id', $request->user()->id)
+            ->first();
+
+        if (!$notification) {
+            return response()->json(['message' => 'Notification not found'], 404);
+        }
+
+        $notification->delete();
+
+        return response()->json([
+            'message' => 'Notification deleted successfully'
+        ]);
+    }
+
+    public function destroyAll(Request $request)
+    {
+        $deleted = Notification::where('user_id', $request->user()->id)
+            ->delete();
+
+        return response()->json([
+            'message' => 'All notifications deleted',
+            'deleted_count' => $deleted
+        ]);
     }
 }

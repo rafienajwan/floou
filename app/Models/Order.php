@@ -26,6 +26,8 @@ class Order extends Model
     ];
 
     protected $casts = [
+        'total_price' => 'decimal:2',
+        'shipping_cost' => 'decimal:2',
         'completed_at' => 'datetime',
         'canceled_at' => 'datetime',
     ];
@@ -47,6 +49,11 @@ class Order extends Model
         return $this->hasMany(OrderDetail::class);
     }
 
+    public function reviews()
+    {
+        return $this->hasMany(Review::class);
+    }
+
     public function canCancel()
     {
         return in_array($this->status, ['pending', 'confirmed']);
@@ -62,7 +69,7 @@ class Order extends Model
         $prefix = 'INV';
         $date = date('Ymd');
         $lastOrder = self::whereDate('created_at', today())
-            ->latest()
+            ->latest('id')
             ->first();
 
         if ($lastOrder && $lastOrder->invoice_number) {
