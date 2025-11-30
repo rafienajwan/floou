@@ -1,52 +1,275 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 🌿 Floou Backend API
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Backend API untuk aplikasi e-commerce tanaman hias **Floou**, dibangun dengan Laravel 11 dan Laravel Sanctum untuk authentication.
 
-## About Laravel
+## 📋 Features
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- ✅ **Authentication & Authorization** - Register, Login, Logout dengan Laravel Sanctum
+- ✅ **Plant Management** - CRUD tanaman dengan kategori dan tipe
+- ✅ **Order System** - Create, view, cancel orders dengan invoice otomatis
+- ✅ **Review System** - Customer dapat memberikan rating dan review
+- ✅ **Notification System** - Real-time notification untuk order updates
+- ✅ **Admin Dashboard** - Statistics dan management untuk admin
+- ✅ **Image Upload** - Upload dan manage gambar tanaman
+- ✅ **Shipping Options** - Standard dan Express shipping
+- ✅ **Stock Management** - Automatic stock updates
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 🛠️ Tech Stack
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- **Framework**: Laravel 11
+- **Authentication**: Laravel Sanctum
+- **Database**: MySQL
+- **Storage**: Local Storage (configurable to S3)
+- **PHP Version**: 8.2+
 
-## Learning Laravel
+## 📦 Installation
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+### Prerequisites
+- PHP >= 8.2
+- Composer
+- MySQL
+- Node.js & NPM (optional, untuk asset compilation)
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+### Setup Steps
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+1. **Clone Repository**
+```bash
+git clone https://github.com/rafienajwan/floou.git
+cd floou-backend
+```
 
-## Laravel Sponsors
+2. **Install Dependencies**
+```bash
+composer install
+```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+3. **Environment Configuration**
+```bash
+cp .env.example .env
+php artisan key:generate
+```
 
-### Premium Partners
+4. **Configure Database**
+Edit `.env` file:
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=floou_db
+DB_USERNAME=root
+DB_PASSWORD=your_password
+```
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+5. **Run Migrations & Seeders**
+```bash
+php artisan migrate --seed
+```
 
-## Contributing
+6. **Create Storage Link**
+```bash
+php artisan storage:link
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+7. **Start Development Server**
+```bash
+php artisan serve
+```
+
+Server akan berjalan di `http://localhost:8000`
+
+## 👤 Default Accounts
+
+Setelah menjalankan seeder, Anda dapat login dengan:
+
+### Admin Account
+- **Email**: admin@floou.com
+- **Password**: password123
+
+### Customer Account
+- **Email**: customer@example.com
+- **Password**: password123
+
+## 📚 API Documentation
+
+Dokumentasi lengkap API tersedia di:
+- **[API_DOCUMENTATION.md](API_DOCUMENTATION.md)** - Dokumentasi lengkap semua endpoints
+- **[Floou_API.postman_collection.json](Floou_API.postman_collection.json)** - Postman Collection untuk testing
+
+### Quick Links
+- Base URL: `http://localhost:8000/api`
+- Authentication: Bearer Token (Laravel Sanctum)
+
+### Main Endpoints
+
+#### Public Endpoints
+```
+GET    /plants                 - Get all plants with filters
+GET    /plants/{id}            - Get single plant detail
+GET    /categories             - Get all categories
+GET    /plant-types            - Get all plant types
+GET    /plants/{id}/reviews    - Get plant reviews
+```
+
+#### Authentication
+```
+POST   /register               - Register new user
+POST   /login                  - Login user
+POST   /logout                 - Logout user
+GET    /me                     - Get current user
+```
+
+#### Orders (Requires Auth)
+```
+GET    /orders                 - Get user orders
+POST   /orders                 - Create new order
+GET    /orders/{id}            - Get order detail
+POST   /orders/{id}/cancel     - Cancel order
+GET    /orders/{id}/invoice    - Get order invoice
+```
+
+#### Reviews (Requires Auth)
+```
+POST   /reviews                - Create review
+PUT    /reviews/{id}           - Update review
+DELETE /reviews/{id}           - Delete review
+GET    /my-reviews             - Get user's reviews
+```
+
+#### Admin Endpoints (Requires Admin Role)
+```
+GET    /dashboard              - Get dashboard statistics
+POST   /plants                 - Create plant
+PUT    /plants/{id}            - Update plant
+DELETE /plants/{id}            - Delete plant
+PATCH  /orders/{id}/status     - Update order status
+GET    /admin/users            - Get all users
+GET    /admin/orders           - Get all orders with filters
+```
+
+## 🗂️ Project Structure
+
+```
+floou-backend/
+├── app/
+│   ├── Http/
+│   │   ├── Controllers/      # API Controllers
+│   │   ├── Middleware/       # Custom Middleware
+│   │   └── Resources/        # API Resources
+│   └── Models/               # Eloquent Models
+├── config/                   # Configuration files
+├── database/
+│   ├── migrations/          # Database migrations
+│   └── seeders/             # Database seeders
+├── routes/
+│   └── api.php              # API routes
+├── storage/
+│   └── app/public/          # Public storage (images)
+└── public/
+    └── storage/             # Symlink to storage
+```
+
+## 🔐 Security
+
+- **Authentication**: Laravel Sanctum dengan token expiration 30 hari
+- **CORS**: Configured untuk frontend compatibility
+- **Validation**: Input validation pada semua endpoints
+- **Authorization**: Role-based access control (Admin/User)
+- **CSRF Protection**: Disabled untuk API routes
+
+## 🚀 Deployment
+
+### Production Checklist
+
+1. **Environment**
+```bash
+APP_ENV=production
+APP_DEBUG=false
+```
+
+2. **Optimize**
+```bash
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+composer install --optimize-autoloader --no-dev
+```
+
+3. **Database**
+```bash
+php artisan migrate --force
+```
+
+4. **Storage**
+- Ensure `storage` and `bootstrap/cache` directories are writable
+- Configure cloud storage (S3) if needed
+
+5. **Security**
+- Update `SANCTUM_STATEFUL_DOMAINS` in `.env`
+- Configure `allowed_origins` in `config/cors.php`
+- Set strong `APP_KEY`
+
+## 🧪 Testing
+
+```bash
+# Run all tests
+php artisan test
+
+# Run specific test
+php artisan test --filter TestName
+```
+
+## 📝 Database Schema
+
+### Main Tables
+- **users** - User accounts (admin & customers)
+- **plants** - Plant products
+- **categories** - Plant categories
+- **plant_types** - Plant types (Indoor/Outdoor)
+- **orders** - Customer orders
+- **order_details** - Order items
+- **reviews** - Product reviews
+- **notifications** - User notifications
+
+### Relationships
+```
+User -> Orders (1:N)
+User -> Reviews (1:N)
+User -> Notifications (1:N)
+Plant -> Category (N:1)
+Plant -> PlantType (N:1)
+Plant -> Reviews (1:N)
+Order -> OrderDetails (1:N)
+Order -> Reviews (1:N)
+```
+
+## 🤝 Contributing
+
+Contributions are welcome! Please follow these steps:
+
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License.
+
+## 👨‍💻 Developer
+
+- **Repository**: [github.com/rafienajwan/floou](https://github.com/rafienajwan/floou)
+- **Branch**: backend
+
+## 📞 Support
+
+Jika ada pertanyaan atau issue, silakan buat issue di GitHub repository atau hubungi backend team.
+
+---
+
+**Last Updated**: 30 November 2025  
+**Version**: 1.0.0  
+**Laravel Version**: 11.x
 
 ## Code of Conduct
 
