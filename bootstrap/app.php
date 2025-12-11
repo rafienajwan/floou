@@ -22,9 +22,6 @@ return Application::configure(basePath: dirname(__DIR__))
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
         ]);
 
-        // Enable throttle for API
-        $middleware->throttleApi();
-
         // Disable CSRF for API routes
         $middleware->validateCsrfTokens(except: [
             'api/*',
