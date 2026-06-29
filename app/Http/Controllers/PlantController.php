@@ -2,9 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Plant;
 use App\Models\Category;
-use App\Models\PlantType;
+use App\Models\Plant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -19,9 +18,9 @@ class PlantController extends Controller
         // Search
         if ($request->has('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('name', 'like', '%' . $search . '%')
-                  ->orWhere('description', 'like', '%' . $search . '%');
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', '%'.$search.'%')
+                    ->orWhere('description', 'like', '%'.$search.'%');
             });
         }
 
@@ -51,7 +50,11 @@ class PlantController extends Controller
 
         // Sort
         $sortBy = $request->get('sort_by', 'created_at');
-        $sortOrder = $request->get('sort_order', 'desc');
+        $sortOrder = strtolower($request->get('sort_order', 'desc'));
+
+        if (! in_array($sortOrder, ['asc', 'desc'], true)) {
+            $sortOrder = 'desc';
+        }
 
         if (in_array($sortBy, ['name', 'price', 'created_at', 'stock'])) {
             $query->orderBy($sortBy, $sortOrder);
@@ -59,11 +62,11 @@ class PlantController extends Controller
             $query->latest();
         }
 
-        $perPage = $request->get('per_page', 12);
+        $perPage = min(max((int) $request->get('per_page', 12), 1), 100);
         $plants = $query->paginate($perPage);
 
         return response()->json([
-            'plants' => $plants
+            'plants' => $plants,
         ]);
     }
 
@@ -72,7 +75,7 @@ class PlantController extends Controller
         $plant->load(['category', 'plantType', 'reviews.user']);
 
         return response()->json([
-            'plant' => $plant
+            'plant' => $plant,
         ]);
     }
 
@@ -85,7 +88,7 @@ class PlantController extends Controller
             'stock' => 'required|integer|min:0',
             'category_id' => 'required|exists:categories,id',
             'plant_type_id' => 'required|exists:plant_types,id',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
         if ($validator->fails()) {
@@ -99,7 +102,7 @@ class PlantController extends Controller
 
             // Ensure unique slug
             while (Plant::where('slug', $slug)->exists()) {
-                $slug = $originalSlug . '-' . $count;
+                $slug = $originalSlug.'-'.$count;
                 $count++;
             }
 
@@ -114,7 +117,10 @@ class PlantController extends Controller
             ];
 
             if ($request->hasFile('image')) {
-                $imagePath = $request->file('image')->store('plants', 'public');
+                $image = $request->file('image');
+                $extension = $image->getClientOriginalExtension();
+                $filename = $slug.'-'.time().'.'.$extension;
+                $imagePath = $image->storeAs('plants', $filename, 'public');
                 $data['image'] = $imagePath;
             }
 
@@ -122,13 +128,13 @@ class PlantController extends Controller
 
             return response()->json([
                 'message' => 'Plant created successfully',
-                'plant' => $plant->load(['category', 'plantType'])
+                'plant' => $plant->load(['category', 'plantType']),
             ], 201);
 
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to create plant',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -136,13 +142,13 @@ class PlantController extends Controller
     public function update(Request $request, Plant $plant)
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'sometimes|required|string|max:255|unique:plants,name,' . $plant->id,
+            'name' => 'sometimes|required|string|max:255|unique:plants,name,'.$plant->id,
             'description' => 'sometimes|required|string',
             'price' => 'sometimes|required|numeric|min:0',
             'stock' => 'sometimes|required|integer|min:0',
             'category_id' => 'sometimes|required|exists:categories,id',
             'plant_type_id' => 'sometimes|required|exists:plant_types,id',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
         if ($validator->fails()) {
@@ -159,7 +165,7 @@ class PlantController extends Controller
                 $count = 1;
 
                 while (Plant::where('slug', $slug)->where('id', '!=', $plant->id)->exists()) {
-                    $slug = $originalSlug . '-' . $count;
+                    $slug = $originalSlug.'-'.$count;
                     $count++;
                 }
 
@@ -172,7 +178,12 @@ class PlantController extends Controller
                     Storage::disk('public')->delete($plant->image);
                 }
 
-                $imagePath = $request->file('image')->store('plants', 'public');
+                $image = $request->file('image');
+                $extension = $image->getClientOriginalExtension();
+                // Use new slug if name changed, otherwise use existing slug
+                $slugForImage = isset($data['slug']) ? $data['slug'] : $plant->slug;
+                $filename = $slugForImage.'-'.time().'.'.$extension;
+                $imagePath = $image->storeAs('plants', $filename, 'public');
                 $data['image'] = $imagePath;
             }
 
@@ -180,13 +191,13 @@ class PlantController extends Controller
 
             return response()->json([
                 'message' => 'Plant updated successfully',
-                'plant' => $plant->fresh()->load(['category', 'plantType'])
+                'plant' => $plant->fresh()->load(['category', 'plantType']),
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to update plant',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -197,7 +208,7 @@ class PlantController extends Controller
             // Check if plant has orders
             if ($plant->orderDetails()->exists()) {
                 return response()->json([
-                    'message' => 'Cannot delete plant with existing orders. Consider setting stock to 0 instead.'
+                    'message' => 'Cannot delete plant with existing orders. Consider setting stock to 0 instead.',
                 ], 400);
             }
 
@@ -209,13 +220,13 @@ class PlantController extends Controller
             $plant->delete();
 
             return response()->json([
-                'message' => 'Plant deleted successfully'
+                'message' => 'Plant deleted successfully',
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to delete plant',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

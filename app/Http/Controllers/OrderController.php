@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
+use App\Models\Notification;
 use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\Plant;
-use App\Models\Notification;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 
 class OrderController extends Controller
 {
@@ -47,24 +47,29 @@ class OrderController extends Controller
 
             $totalPrice = 0;
             $items = [];
+            $requestedItems = collect($validator->validated()['items'])
+                ->groupBy('plant_id')
+                ->map(fn ($items) => $items->sum('quantity'));
 
             // Check stock and calculate total price
-            foreach ($request->items as $item) {
-                $plant = Plant::findOrFail($item['plant_id']);
+            foreach ($requestedItems as $plantId => $quantity) {
+                $plant = Plant::whereKey($plantId)->lockForUpdate()->firstOrFail();
 
-                if ($plant->stock < $item['quantity']) {
+                if ($plant->stock < $quantity) {
+                    DB::rollBack();
+
                     return response()->json([
-                        'message' => "Insufficient stock for {$plant->name}. Available: {$plant->stock}"
+                        'message' => "Insufficient stock for {$plant->name}. Available: {$plant->stock}",
                     ], 400);
                 }
 
-                $itemPrice = $plant->price * $item['quantity'];
+                $itemPrice = $plant->price * $quantity;
                 $totalPrice += $itemPrice;
 
                 $items[] = [
                     'plant' => $plant,
-                    'quantity' => $item['quantity'],
-                    'price' => $plant->price
+                    'quantity' => $quantity,
+                    'price' => $plant->price,
                 ];
             }
 
@@ -85,7 +90,7 @@ class OrderController extends Controller
                 'shipping_method' => $request->shipping_method,
                 'shipping_cost' => $shippingCost,
                 'notes' => $request->notes,
-                'status' => 'pending'
+                'status' => 'pending',
             ]);
 
             // Create order details and update stock
@@ -94,7 +99,7 @@ class OrderController extends Controller
                     'order_id' => $order->id,
                     'plant_id' => $item['plant']->id,
                     'quantity' => $item['quantity'],
-                    'price' => $item['price']
+                    'price' => $item['price'],
                 ]);
 
                 // Update stock
@@ -104,8 +109,8 @@ class OrderController extends Controller
             // Create notification
             Notification::create([
                 'user_id' => $request->user()->id,
-                'message' => 'Your order ' . $invoiceNumber . ' has been placed and is waiting for confirmation.',
-                'type' => 'order_placed'
+                'message' => 'Your order '.$invoiceNumber.' has been placed and is waiting for confirmation.',
+                'type' => 'order_placed',
             ]);
 
             DB::commit();
@@ -113,6 +118,7 @@ class OrderController extends Controller
             return response()->json(['order' => $order->load('orderDetails.plant')], 201);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json(['message' => 'An error occurred while placing your order.', 'error' => $e->getMessage()], 500);
         }
     }
@@ -135,7 +141,7 @@ class OrderController extends Controller
     public function cancel(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
-            'reason' => 'required|string|max:500'
+            'reason' => 'required|string|max:500',
         ]);
 
         if ($validator->fails()) {
@@ -150,7 +156,7 @@ class OrderController extends Controller
             $order = Order::where('user_id', $user->id)->findOrFail($id);
         }
 
-        if (!$order->canCancel()) {
+        if (! $order->canCancel()) {
             return response()->json(['message' => 'This order cannot be canceled. Only pending or confirmed orders can be canceled.'], 400);
         }
 
@@ -160,7 +166,7 @@ class OrderController extends Controller
             $order->update([
                 'status' => 'canceled',
                 'canceled_at' => now(),
-                'cancel_reason' => $request->reason
+                'cancel_reason' => $request->reason,
             ]);
 
             // Return stock to inventory
@@ -172,8 +178,8 @@ class OrderController extends Controller
             // Create notification
             Notification::create([
                 'user_id' => $order->user_id,
-                'message' => 'Your order ' . $order->invoice_number . ' has been canceled. Reason: ' . $request->reason,
-                'type' => 'order_canceled'
+                'message' => 'Your order '.$order->invoice_number.' has been canceled. Reason: '.$request->reason,
+                'type' => 'order_canceled',
             ]);
 
             DB::commit();
@@ -181,6 +187,7 @@ class OrderController extends Controller
             return response()->json(['message' => 'Order canceled successfully', 'order' => $order]);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json(['message' => 'An error occurred while canceling your order.'], 500);
         }
     }
@@ -195,11 +202,17 @@ class OrderController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        if (!$request->user()->isAdmin()) {
+        if (! $request->user()->isAdmin()) {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
-        $order = Order::findOrFail($id);
+        $order = Order::with('orderDetails')->findOrFail($id);
+
+        if (in_array($order->status, ['completed', 'canceled']) && $order->status !== $request->status) {
+            return response()->json([
+                'message' => 'Completed or canceled orders cannot be changed.',
+            ], 400);
+        }
 
         try {
             DB::beginTransaction();
@@ -228,20 +241,20 @@ class OrderController extends Controller
             $message = '';
             switch ($request->status) {
                 case 'confirmed':
-                    $message = 'Your order ' . $order->invoice_number . ' has been confirmed and is being processed.';
+                    $message = 'Your order '.$order->invoice_number.' has been confirmed and is being processed.';
                     break;
                 case 'completed':
-                    $message = 'Your order ' . $order->invoice_number . ' has been completed. Thank you for your purchase!';
+                    $message = 'Your order '.$order->invoice_number.' has been completed. Thank you for your purchase!';
                     break;
                 case 'canceled':
-                    $message = 'Your order ' . $order->invoice_number . ' has been canceled by admin.';
+                    $message = 'Your order '.$order->invoice_number.' has been canceled by admin.';
                     break;
             }
 
             Notification::create([
                 'user_id' => $order->user_id,
                 'message' => $message,
-                'type' => 'order_status_changed'
+                'type' => 'order_status_changed',
             ]);
 
             DB::commit();
@@ -249,6 +262,7 @@ class OrderController extends Controller
             return response()->json(['message' => 'Order status updated successfully', 'order' => $order]);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json(['message' => 'An error occurred while updating order status.'], 500);
         }
     }
@@ -279,12 +293,12 @@ class OrderController extends Controller
 
         // Pencarian
         if ($request->has('search')) {
-            $query->where(function($q) use ($request) {
-                $q->where('invoice_number', 'like', '%' . $request->search . '%')
-                  ->orWhereHas('user', function($query) use ($request) {
-                    $query->where('name', 'like', '%' . $request->search . '%')
-                          ->orWhere('email', 'like', '%' . $request->search . '%');
-                });
+            $query->where(function ($q) use ($request) {
+                $q->where('invoice_number', 'like', '%'.$request->search.'%')
+                    ->orWhereHas('user', function ($query) use ($request) {
+                        $query->where('name', 'like', '%'.$request->search.'%')
+                            ->orWhere('email', 'like', '%'.$request->search.'%');
+                    });
             });
         }
 
@@ -302,7 +316,7 @@ class OrderController extends Controller
             DB::beginTransaction();
 
             // Kembalikan stok produk jika order belum canceled
-            if ($order->status !== 'canceled') {
+            if (in_array($order->status, ['pending', 'confirmed'])) {
                 foreach ($order->orderDetails as $detail) {
                     Plant::where('id', $detail->plant_id)
                         ->increment('stock', $detail->quantity);
@@ -319,6 +333,7 @@ class OrderController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json(['message' => 'An error occurred while deleting the order.'], 500);
         }
     }
@@ -352,7 +367,7 @@ class OrderController extends Controller
 
         return response()->json([
             'message' => 'Order details updated successfully',
-            'order' => $order->fresh()
+            'order' => $order->fresh(),
         ]);
     }
 

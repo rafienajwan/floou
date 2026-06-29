@@ -19,6 +19,7 @@ class PlantSeeder extends Seeder
         $plantTypes = PlantType::all();
 
         // Buat array tanaman dengan data lengkap
+        $baseTime = time();
         $plants = [
             [
                 'name' => 'Monstera Deliciosa',
@@ -28,7 +29,7 @@ class PlantSeeder extends Seeder
                 'stock' => 20,
                 'category_id' => $categories->where('slug', 'tanaman-hias')->first()->id,
                 'plant_type_id' => $plantTypes->where('slug', 'indoor')->first()->id,
-                'image' => 'plants/monstera-deliciosa.jpg'
+                'image' => 'plants/monstera-deliciosa-' . ($baseTime + 1) . '.jpg'
             ],
             [
                 'name' => 'Aglonema Red',
@@ -38,7 +39,7 @@ class PlantSeeder extends Seeder
                 'stock' => 15,
                 'category_id' => $categories->where('slug', 'tanaman-hias')->first()->id,
                 'plant_type_id' => $plantTypes->where('slug', 'indoor')->first()->id,
-                'image' => 'plants/aglonema-red.jpg'
+                'image' => 'plants/aglonema-red-' . ($baseTime + 2) . '.jpg'
             ],
             [
                 'name' => 'Kaktus Mini',
@@ -48,7 +49,7 @@ class PlantSeeder extends Seeder
                 'stock' => 30,
                 'category_id' => $categories->where('slug', 'kaktus-sukulen')->first()->id,
                 'plant_type_id' => $plantTypes->where('slug', 'indoor')->first()->id,
-                'image' => 'plants/kaktus-mini.jpg'
+                'image' => 'plants/kaktus-mini-' . ($baseTime + 3) . '.jpg'
             ],
             [
                 'name' => 'Pohon Mangga',
@@ -58,7 +59,7 @@ class PlantSeeder extends Seeder
                 'stock' => 8,
                 'category_id' => $categories->where('slug', 'tanaman-buah')->first()->id,
                 'plant_type_id' => $plantTypes->where('slug', 'outdoor')->first()->id,
-                'image' => 'plants/pohon-mangga.jpg'
+                'image' => 'plants/pohon-mangga-' . ($baseTime + 4) . '.jpg'
             ],
             [
                 'name' => 'Lidah Buaya',
@@ -68,7 +69,7 @@ class PlantSeeder extends Seeder
                 'stock' => 25,
                 'category_id' => $categories->where('slug', 'tanaman-obat')->first()->id,
                 'plant_type_id' => $plantTypes->where('slug', 'indoor')->first()->id,
-                'image' => 'plants/lidah-buaya.jpg'
+                'image' => 'plants/lidah-buaya-' . ($baseTime + 5) . '.jpg'
             ],
             [
                 'name' => 'Sirih Gading',
@@ -78,7 +79,7 @@ class PlantSeeder extends Seeder
                 'stock' => 18,
                 'category_id' => $categories->where('slug', 'tanaman-hias')->first()->id,
                 'plant_type_id' => $plantTypes->where('slug', 'merambat')->first()->id,
-                'image' => 'plants/sirih-gading.jpg'
+                'image' => 'plants/sirih-gading-' . ($baseTime + 6) . '.jpg'
             ],
             [
                 'name' => 'Teratai',
@@ -88,7 +89,7 @@ class PlantSeeder extends Seeder
                 'stock' => 10,
                 'category_id' => $categories->where('slug', 'tanaman-air')->first()->id,
                 'plant_type_id' => $plantTypes->where('slug', 'aquascape')->first()->id,
-                'image' => 'plants/teratai.jpg'
+                'image' => 'plants/teratai-' . ($baseTime + 7) . '.jpg'
             ],
             [
                 'name' => 'Sukulen Echeveria',
@@ -98,7 +99,7 @@ class PlantSeeder extends Seeder
                 'stock' => 40,
                 'category_id' => $categories->where('slug', 'kaktus-sukulen')->first()->id,
                 'plant_type_id' => $plantTypes->where('slug', 'indoor')->first()->id,
-                'image' => 'plants/sukulen-echeveria.jpg'
+                'image' => 'plants/sukulen-echeveria-' . ($baseTime + 8) . '.jpg'
             ],
         ];
 
